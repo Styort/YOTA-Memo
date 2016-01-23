@@ -257,7 +257,8 @@ public class Controller{
         Parent root = FXMLLoader.load(getClass().getResource("About.fxml"));
         Stage stage = new Stage();
         stage.setTitle("О программе");
-        stage.setScene(new Scene(root, 400, 200));
+        stage.setResizable(false);
+        stage.setScene(new Scene(root, 450, 200));
         stage.show();
 
     }
