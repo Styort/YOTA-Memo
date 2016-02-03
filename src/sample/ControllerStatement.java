@@ -89,7 +89,6 @@ public class ControllerStatement extends ControllerMemo {
     }
     public void PrintStatement() { //выводим на печать памятку
         PrinterJob pjob = PrinterJob.getPrinterJob();
-        Font font = null;
         pjob.setPrintable((graphics, pageFormat, pageIndex) -> {
             if (pageIndex == 0) {
                 Map<TextAttribute, Object> attributes = new HashMap<TextAttribute, Object>();
