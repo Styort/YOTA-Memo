@@ -11,9 +11,14 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.CheckBox;
-import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextField;
 import javafx.stage.Stage;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDDocumentCatalog;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDType0Font;
+import org.apache.pdfbox.printing.PDFPageable;
 
 import java.awt.*;
 import java.awt.print.*;
@@ -23,16 +28,18 @@ public class ControllerMemo {
     @FXML
     TextField url, iccid, address, data, clientName, clientPhoneNumber, comment;
     @FXML
-    MenuItem clearData;
-    @FXML
     CheckBox authLoopCheckBox, fillCommentCheckBox;
+    @FXML
+    TextField urlSt, iccidSt, fio, dataBdayAndLocation, phoneNumber;
     WebClient webClient = new WebClient(BrowserVersion.CHROME);
-    boolean clearAllOrNotAll = false;
-    HtmlTextInput Iccid, Address, Data, TimeBegin, TimeEnd, ClientName, ClientPhoneNumber;
+    HtmlTextInput Iccid, Address, Data, TimeBegin, TimeEnd, ClientName, ClientPhoneNumber,DateBdayAndLocation;
     HtmlTextArea Comment;
     String defaultURL = "https://partner.yota.ru/rd/vox/order/edit/";
     Thread timeredLogin;
     boolean info = true;
+    boolean check = false;
+    boolean clearAllOrNotAll = false;
+    boolean loopLogin = false;
 
     public void LoopAuth() throws InterruptedException { //автологин каждые 15 мин.
         if (authLoopCheckBox.isSelected()) {
@@ -44,6 +51,8 @@ public class ControllerMemo {
                                 info = false;
                                 LogInYOTA();
                             } catch (IOException e) {
+                                e.printStackTrace();
+                            } catch (InterruptedException e) {
                                 e.printStackTrace();
                             }
                         });
@@ -60,7 +69,7 @@ public class ControllerMemo {
         }
     }
 
-    public void IncomingData() throws IOException { //получаем данные с портала
+    public void IncomingDataMemo() throws IOException { //получаем данные с портала
         clearAllOrNotAll = true;
         ClearAll();
         try {
@@ -115,13 +124,18 @@ public class ControllerMemo {
     public void ClearAll() { //стереть все данные
         if (!clearAllOrNotAll) {
             url.clear();
+            urlSt.clear();
         }
+        iccidSt.clear();
         iccid.clear();
         address.clear();
         data.clear();
         clientName.clear();
         clientPhoneNumber.clear();
         comment.clear();
+        fio.clear();
+        dataBdayAndLocation.clear();
+        phoneNumber.clear();
         clearAllOrNotAll = false;
     }
 
@@ -133,7 +147,7 @@ public class ControllerMemo {
         webClient.getOptions().setJavaScriptEnabled(false);
     }
 
-    public void LogInYOTA() throws IOException { //авторизируемся в портале
+    public void LogInYOTA() throws IOException, InterruptedException { //авторизируемся в портале
         WebBrowserSettings();
         try {
             HtmlPage page1 = webClient.getPage("https://partner.yota.ru/rd/login");
@@ -160,7 +174,10 @@ public class ControllerMemo {
             alert.setContentText("Похоже у вас оборвалось соединение с интернетом...");
             alert.showAndWait();
         }
-
+        if(!loopLogin){
+            LoopAuth();
+            loopLogin=true;
+        }
     }
 
     public void PrintMemo() { //выводим на печать памятку
@@ -196,16 +213,16 @@ public class ControllerMemo {
                 graphics.drawString("Комментарий:", start - fm.stringWidth("Комментарий:") / 2, 215);
                 graphics.setFont(new Font("default", Font.PLAIN, 12));
                 if (fillCommentCheckBox.isSelected()) {
-                    graphics.drawRect(195, 219, 200, 13);
+                    graphics.drawRect(190, 219, 200, 13);
                     graphics.setColor(Color.lightGray);
-                    graphics.fillRect(195, 219, 200, 13);
+                    graphics.fillRect(190, 219, 200, 13);
                     graphics.setColor(Color.black);
                 }
                 graphics.drawString(comment.getText(), start - fm.stringWidth(comment.getText()) / 2, 230);
                 graphics.setFont(new Font("default", Font.BOLD, 12));
-                graphics.drawRect(240, 234, 100, 13);
+                graphics.drawRect(236, 234, 100, 13);
                 graphics.setColor(Color.lightGray);
-                graphics.fillRect(240, 234, 100, 13);
+                graphics.fillRect(236, 234, 100, 13);
                 graphics.setColor(Color.black);
                 graphics.drawString("Заполнить ПД!", start - fm.stringWidth("Заполнить ПД!") / 2, 245);
                 graphics.setFont(new Font("default", Font.PLAIN, 12));
@@ -248,6 +265,139 @@ public class ControllerMemo {
         }
     }
 
+    public void GetData(){ //парсим данные с портала
+        clearAllOrNotAll = true;
+        ClearAll();
+        try {
+            if (url.getText() == null || url.getText().equals("")) {
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Ошибка!");
+                alert.setHeaderText("Недостаточно данных");
+                alert.setContentText("Вставьте ссылку!");
+
+                alert.showAndWait();
+            } else {
+                if (urlSt.getText().contains(defaultURL)) {
+                    HtmlPage page2 = webClient.getPage(urlSt.getText());
+                    Iccid = page2.getFirstByXPath("//input[@id='order_sim_cards_0_iccid']");
+                    iccidSt.appendText(Iccid.getDefaultValue());
+                    ClientName = page2.getFirstByXPath("//input[@name='order[name_data_raw]']");
+                    DateBdayAndLocation = page2.getFirstByXPath("//input[@id='order_birth_data_raw']");
+                    ClientPhoneNumber = page2.getFirstByXPath("//input[@name='order[contact_phone]']");
+                    fio.appendText(ClientName.getDefaultValue());
+                    String data = DateBdayAndLocation.getDefaultValue().replaceAll("[\\.]","").substring(0,8);
+                    String location = DateBdayAndLocation.getDefaultValue().substring(11,DateBdayAndLocation.getDefaultValue().length());
+                    dataBdayAndLocation.appendText(data+" "+location);
+                    String ph = ClientPhoneNumber.getDefaultValue().replaceAll("[\\+\\(\\)]",""); //убираем из номера телефона символы + ( )
+                    phoneNumber.appendText(ph.substring(1,ph.length())); //добавляем в текстбокс номер телефона без 7-ки.
+                } else {
+                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                    alert.setTitle("Ошибка!");
+                    alert.setHeaderText("Неверный формат ссылки.");
+                    alert.setContentText("Проверьте правильность введеной ссылки.");
+                    alert.showAndWait();
+                }
+            }
+        } catch (NullPointerException npe) {
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Ошибка!");
+            alert.setHeaderText("Данные не считаны.");
+            alert.setContentText("Необходимо перезайти в портал.");
+
+            alert.showAndWait();
+        } catch (IOException ex) {
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Ошибка!");
+            alert.setHeaderText("Проверьте интернет соединение");
+            alert.setContentText("Похоже у вас оборвалось соединение с интернетом...");
+            alert.showAndWait();
+        }
+    }
+
+    public void PrintStatement() throws IOException, PrinterException { //выводим на печать заявление
+        PDDocument doc = null;
+        doc = PDDocument.load(new File("C:/DocZ.pdf"));
+        PDDocumentCatalog cat = doc.getDocumentCatalog();
+        PDPage page = (PDPage)cat.getPages().get( 0 );
+        doc.addPage(page);
+        PDType0Font font = PDType0Font.load(doc, new File("C:/Windows/Fonts/cour.ttf"));
+
+        PDPageContentStream contentStream = new PDPageContentStream(doc, page, true, true);
+        contentStream.beginText();
+        contentStream.setFont(font,12);
+        contentStream.appendRawCommands("5.2 Tc\n");
+        contentStream.moveTextPositionByAmount(139, 708); // 140 , 708 //добавляем ID
+        contentStream.drawString(iccid.getText());
+        String ph1 = phoneNumber.getText().substring(0,3);
+        String ph2 = phoneNumber.getText().substring(4,7);
+        String ph3 = phoneNumber.getText().substring(8,phoneNumber.getText().length());
+        contentStream.moveTextPositionByAmount(0,-632); // -1 , -632 //добавляем префикс
+        contentStream.drawString(ph1);
+        contentStream.moveTextPositionByAmount(50,0); // 50 , 0 //добавляем ещё 3 цифры
+        contentStream.drawString(ph2);
+        contentStream.moveTextPositionByAmount(49,0); // 50,0 //добавляем последние 4 цифры
+        contentStream.drawString(ph3);
+        String day = dataBdayAndLocation.getText().substring(0,2);
+        String mounth = dataBdayAndLocation.getText().substring(2,4);
+        String year = dataBdayAndLocation.getText().substring(4,8);
+        contentStream.moveTextPositionByAmount(-137, 109 ); // -137 , 109 //добавляем день рожд.
+        contentStream.drawString(day);
+        contentStream.moveTextPositionByAmount(37, 0 ); // 37 , 0 //добавляем месяц рожд.
+        contentStream.drawString(mounth);
+        contentStream.moveTextPositionByAmount(37, 0 ); // 37 , 0 //добавляем год рожд.
+        contentStream.drawString(year);
+        contentStream.appendRawCommands("5.25 Tc\n");
+        if (fio.getText().length()<34){ //проверка на количество символов в строке, если >34, то после 34 перенос на след.строку.
+            contentStream.moveTextPositionByAmount(-48,31 ); // 140 , 708 //добавляем фио
+            contentStream.drawString(fio.getText());
+            check = true;
+        }
+        else {
+            contentStream.moveTextPositionByAmount(-48,31 ); // 140 , 708 //добавляем фио
+            contentStream.drawString(fio.getText().substring(0,35));
+            contentStream.moveTextPositionByAmount(0,-15 ); // 140 , 708 //добавляем фио
+            contentStream.drawString(fio.getText().substring(35,fio.getText().length()));
+            check = false;
+        }
+        String location = dataBdayAndLocation.getText().substring(8,dataBdayAndLocation.getText().length());
+        if (location.length()<21){ //проверка на количество символов в строке, если >21, то после 21 перенос на след.строку.
+            if(check){
+                contentStream.moveTextPositionByAmount(162,-30 ); // 140 , 708 //добавляем фио
+                contentStream.drawString(location);
+            }
+            else {
+                contentStream.moveTextPositionByAmount(162,-15 ); // 140 , 708 //добавляем фио
+                contentStream.drawString(location);
+            }
+        } else {
+            if(check){
+                contentStream.moveTextPositionByAmount(162,-30 ); // 140 , 708 //добавляем адр м.ж.
+                contentStream.drawString(location.substring(0, 22));
+                contentStream.moveTextPositionByAmount(-187, -15); // 140 , 708 //добавляем адр м.ж.
+                contentStream.drawString(location.substring(22,location.length()));
+            } else {
+                contentStream.moveTextPositionByAmount(162,-15 ); // 140 , 708 //добавляем адр м.ж.
+                contentStream.drawString(location.substring(0, 22));
+                contentStream.moveTextPositionByAmount(-187,-15 ); // 140 , 708 //добавляем адр м.ж.
+                contentStream.drawString(location.substring(22,location.length()));
+            }
+
+        }
+        contentStream.endText();
+        contentStream.close();
+
+
+        doc.save("C:/test.pdf");
+
+        PrinterJob job = PrinterJob.getPrinterJob();
+        job.setPageable(new PDFPageable(doc));
+        if (job.printDialog()) {
+            job.print();
+        }
+
+        doc.close();
+    }
+
     public void AboutShow() throws IOException { //показываем окно "О программе"
         Parent root = FXMLLoader.load(getClass().getResource("About.fxml"));
         Stage stage = new Stage();
@@ -257,12 +407,4 @@ public class ControllerMemo {
         stage.show();
     }
 
-    public void showStatement() throws IOException { //показываем окно "Заявление"
-        Parent root = FXMLLoader.load(getClass().getResource("Statement.fxml"));
-        Stage stage = new Stage();
-        stage.setTitle("Заявление");
-        stage.setResizable(false);
-        stage.setScene(new Scene(root, 500, 550));
-        stage.show();
-    }
 }

@@ -7,11 +7,10 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 
 public class Main extends Application {
-
     @Override
     public void start(Stage primaryStage) throws Exception{
-        Parent root = FXMLLoader.load(getClass().getResource("Memo.fxml"));
-        primaryStage.setTitle("YOTA Памятка");
+        Parent root = FXMLLoader.load(getClass().getResource("YotaMemoAndStatement.fxml"));
+        primaryStage.setTitle("YOTA");
         primaryStage.setResizable(false);
         primaryStage.setScene(new Scene(root, 500, 600));
         primaryStage.show();
