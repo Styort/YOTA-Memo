@@ -26,11 +26,9 @@ import java.io.*;
 
 public class ControllerMemo {
     @FXML
-    TextField url, iccid, address, data, clientName, clientPhoneNumber, comment;
+    TextField url, iccid, address, data, clientName, clientPhoneNumber, comment, urlSt, iccidSt, fio, dataBdayAndLocation, phoneNumber;
     @FXML
     CheckBox authLoopCheckBox, fillCommentCheckBox;
-    @FXML
-    TextField urlSt, iccidSt, fio, dataBdayAndLocation, phoneNumber;
     WebClient webClient = new WebClient(BrowserVersion.CHROME);
     HtmlTextInput Iccid, Address, Data, TimeBegin, TimeEnd, ClientName, ClientPhoneNumber,DateBdayAndLocation;
     HtmlTextArea Comment;
@@ -42,7 +40,6 @@ public class ControllerMemo {
     boolean loopLogin = false;
 
     public void LoopAuth() throws InterruptedException { //автологин каждые 15 мин.
-        if (authLoopCheckBox.isSelected()) {
             timeredLogin = new Thread(() -> {
                 try {
                     while (true) {
@@ -63,7 +60,7 @@ public class ControllerMemo {
                 }
             });
             timeredLogin.start();
-        } else if (timeredLogin != null) {
+        if (timeredLogin != null) {
             timeredLogin.interrupt();
             info = true;
         }
@@ -269,14 +266,15 @@ public class ControllerMemo {
         clearAllOrNotAll = true;
         ClearAll();
         try {
-            if (url.getText() == null || url.getText().equals("")) {
+            if (urlSt.getText() == null || urlSt.getText().equals("")) {
                 Alert alert = new Alert(Alert.AlertType.INFORMATION);
                 alert.setTitle("Ошибка!");
                 alert.setHeaderText("Недостаточно данных");
                 alert.setContentText("Вставьте ссылку!");
 
                 alert.showAndWait();
-            } else {
+            }
+            else {
                 if (urlSt.getText().contains(defaultURL)) {
                     HtmlPage page2 = webClient.getPage(urlSt.getText());
                     Iccid = page2.getFirstByXPath("//input[@id='order_sim_cards_0_iccid']");
@@ -290,7 +288,8 @@ public class ControllerMemo {
                     dataBdayAndLocation.appendText(data+" "+location);
                     String ph = ClientPhoneNumber.getDefaultValue().replaceAll("[\\+\\(\\)]",""); //убираем из номера телефона символы + ( )
                     phoneNumber.appendText(ph.substring(1,ph.length())); //добавляем в текстбокс номер телефона без 7-ки.
-                } else {
+                }
+                else {
                     Alert alert = new Alert(Alert.AlertType.INFORMATION);
                     alert.setTitle("Ошибка!");
                     alert.setHeaderText("Неверный формат ссылки.");
@@ -327,7 +326,7 @@ public class ControllerMemo {
         contentStream.setFont(font,12);
         contentStream.appendRawCommands("5.2 Tc\n");
         contentStream.moveTextPositionByAmount(139, 708); // 140 , 708 //добавляем ID
-        contentStream.drawString(iccid.getText());
+        contentStream.drawString(iccidSt.getText());
         String ph1 = phoneNumber.getText().substring(0,3);
         String ph2 = phoneNumber.getText().substring(4,7);
         String ph3 = phoneNumber.getText().substring(8,phoneNumber.getText().length());
@@ -388,13 +387,22 @@ public class ControllerMemo {
 
 
         doc.save("C:/test.pdf");
-
-        PrinterJob job = PrinterJob.getPrinterJob();
-        job.setPageable(new PDFPageable(doc));
-        if (job.printDialog()) {
-            job.print();
+        if (iccidSt.getText().isEmpty() || fio.getText().isEmpty() || dataBdayAndLocation.getText().isEmpty() || phoneNumber.getText().isEmpty())
+        {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("Ошибка!");
+            alert.setHeaderText("Не все данные получены.");
+            alert.setContentText("Заполните все поля!");
+            alert.showAndWait();
         }
-
+        else
+        {
+            PrinterJob job = PrinterJob.getPrinterJob();
+            job.setPageable(new PDFPageable(doc));
+            if (job.printDialog()) {
+                job.print();
+            }
+        }
         doc.close();
     }
 
